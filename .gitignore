@@ -1,3 +1,6 @@
+/src/build
+**/notes
+
 # Prerequisites
 *.d
 
