@@ -1,6 +1,5 @@
-#ifndef FSM3_H
-#define FSM3_H
-#endif
+#ifndef FSM_H
+#define FSM_H
 
 typedef enum State {
     Display_Info,
@@ -11,5 +10,7 @@ typedef enum State {
     Chg_Coeff,
 } State;
 
-void fsm1(int but_1, int but_2, int rot, State* state);
+void fsm1(int but_1, int but_2, int rot, int* change, State* state);
 void fsm2(int input, State* state);
+
+#endif

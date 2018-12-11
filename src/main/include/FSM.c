@@ -1,10 +1,3 @@
-// EL4121 Perancangan Sistem Embedded
-// Tugas    : Sistem Toggle LED
-// No       : 3
-// Nama/NIM : Joshua / 13215043
-// Nama/NIM : Yashael / 13215084
-//
-
 #include "FSM.h"
 
 void fsm1(int but_1, int but_2, int rot, int* change, State* state) {
@@ -40,6 +33,8 @@ void fsm1(int but_1, int but_2, int rot, int* change, State* state) {
                 *state = Show_FFT;
             }
             break;
+        default:
+            break;
     }
 
     // Output Handler
@@ -56,6 +51,9 @@ void fsm1(int but_1, int but_2, int rot, int* change, State* state) {
         case Chg_Freq:
             *change = 1;
             break;
+        default:
+            *change = 0;
+            break;
     }
 }
 
@@ -70,6 +68,8 @@ void fsm2(int input, State* state) {
             break;
         case Chg_Coeff:
             *state = Compute_Filter;
+            break;
+        default:
             break;
     }
 }
