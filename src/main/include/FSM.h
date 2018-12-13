@@ -1,3 +1,6 @@
+// #include <stdio.h>
+#include <stdint.h>
+
 #ifndef FSM_H
 #define FSM_H
 
@@ -10,7 +13,7 @@ typedef enum State {
     Chg_Coeff,
 } State;
 
-void fsm1(int but_1, int but_2, int rot, int* change, State* state);
-void fsm2(int input, State* state);
+void fsm1(int8_t but_1, int8_t but_2, int8_t rot, int8_t* change, State* state);
+void fsm2(int8_t input, State* state);
 
 #endif
