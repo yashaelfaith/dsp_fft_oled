@@ -308,6 +308,7 @@ int main () {
       127, 127, 127, 127, 127, 127, 127, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0
     };
+    float res[128];
     int8_t im[128];//, data_avgs[8];
     int i;//, j, x, y;
 
@@ -331,7 +332,8 @@ int main () {
     gettimeofday(&t2, NULL);
 
     for (i = 0; i < 64; i++){
-        data[i] = 2*isqrt(data[i] * data[i] + im[i] * im[i]); // Make values positive
+        // data[i] = (uint8_t) 2*isqrt(data[i] * data[i] + im[i] * im[i]); // Make values positive
+        res[i] = (float) 2*isqrt(data[i] * data[i] + im[i] * im[i])/128.0; 
         // data[i] = 2*sqrt(data[i] * data[i] + im[i] * im[i]); // Make values positive
     }
 
@@ -339,7 +341,7 @@ int main () {
 
     printf("averaged\n");
     for (i = 0; i < 64; i++)
-        printf("%d\n", data[i]);
+        printf("%f\n", res[i]);
 
     elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000000.0;      // sec to ms
     elapsedTime += (t2.tv_usec - t1.tv_usec) ;   // us to ms

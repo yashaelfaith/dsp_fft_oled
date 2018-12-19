@@ -21,14 +21,14 @@ void setup() {
 void loop() {
   // read the input on analog pin 0:
 
-  for (int i = 0 ; i < 4; i += 1) {
+  for (int i = 0 ; i < 8; i += 1) {
     int sensorValue = analogRead(A0);
     digitalWrite(9,HIGH);
     Serial.println(sensorValue);
     delay(1);
   }
   
-  for (int i = 0 ; i < 4; i += 1) {
+  for (int i = 0 ; i < 8; i += 1) {
     int sensorValue = analogRead(A0);
     digitalWrite(9,LOW);
     Serial.println(sensorValue);

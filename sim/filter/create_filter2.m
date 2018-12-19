@@ -4,33 +4,29 @@ Fs = 1000;
 Fn = Fs/2;
 
 %% Create Filters
-lp1 = fir1(N, 60/Fn, 'low');
-lp2 = fir1(N, 120/Fn, 'low');
-lp3 = fir1(N, 180/Fn, 'low');
-lp4 = fir1(N, 240/Fn, 'low');
-lp5 = fir1(N, 300/Fn, 'low');
-lp6 = fir1(N, 360/Fn, 'low');
-lp7 = fir1(N, 420/Fn, 'low');
+lp1 = fir1(N, 50/Fn, 'low');
+lp2 = fir1(N, 100/Fn, 'low');
+lp3 = fir1(N, 150/Fn, 'low');
+lp4 = fir1(N, 200/Fn, 'low');
+lp5 = fir1(N, 250/Fn, 'low');
 
-hp1 = fir1(N, 60/Fn, 'high');
-hp2 = fir1(N, 120/Fn, 'high');
-hp3 = fir1(N, 180/Fn, 'high');
-hp4 = fir1(N, 240/Fn, 'high');
-hp5 = fir1(N, 300/Fn, 'high');
-hp6 = fir1(N, 360/Fn, 'high');
-hp7 = fir1(N, 420/Fn, 'high');
+hp1 = fir1(N, 50/Fn, 'high');
+hp2 = fir1(N, 100/Fn, 'high');
+hp3 = fir1(N, 150/Fn, 'high');
+hp4 = fir1(N, 200/Fn, 'high');
+hp5 = fir1(N, 250/Fn, 'high');
 
-bp1 = fir1(N, [60/Fn, 180/Fn], 'bandpass');
-bp2 = fir1(N, [120/Fn, 240/Fn], 'bandpass');
-bp3 = fir1(N, [180/Fn, 300/Fn], 'bandpass');
-bp4 = fir1(N, [240/Fn, 360/Fn], 'bandpass');
-bp5 = fir1(N, [300/Fn, 420/Fn], 'bandpass');
+bp1 = fir1(N, [50/Fn, 100/Fn], 'bandpass');
+bp2 = fir1(N, [50/Fn, 150/Fn], 'bandpass');
+bp3 = fir1(N, [100/Fn, 200/Fn], 'bandpass');
+bp4 = fir1(N, [150/Fn, 250/Fn], 'bandpass');
+bp5 = fir1(N, [200/Fn, 250/Fn], 'bandpass');
 
-bs1 = fir1(N, [60/Fn, 180/Fn], 'stop');
-bs2 = fir1(N, [120/Fn, 240/Fn], 'stop');
-bs3 = fir1(N, [180/Fn, 300/Fn], 'stop');
-bs4 = fir1(N, [240/Fn, 360/Fn], 'stop');
-bs5 = fir1(N, [300/Fn, 420/Fn], 'stop');
+bs1 = fir1(N, [50/Fn, 100/Fn], 'stop');
+bs2 = fir1(N, [50/Fn, 150/Fn], 'stop');
+bs3 = fir1(N, [100/Fn, 200/Fn], 'stop');
+bs4 = fir1(N, [150/Fn, 250/Fn], 'stop');
+bs5 = fir1(N, [200/Fn, 250/Fn], 'stop');
 
 %% Convert to fractional number
 % lpf1 = ceil(lp1*2^8);
@@ -67,16 +63,17 @@ bs5 = fir1(N, [300/Fn, 420/Fn], 'stop');
 
 %% Print to file
 fileID = fopen('filterf_2.csv','w');
-fprintf(fileID,'%6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s\n', 'lpf1', 'lpf2', 'lpf3', 'lpf4', 'lpf5', 'lpf6', 'lpf7', 'hpf1', 'hpf2', 'hpf3', 'hpf4', 'hpf5', 'hpf6', 'hpf7', 'bpf1', 'bpf2', 'bpf3', 'bpf4', 'bpf5', 'bsf1', 'bsf2', 'bsf3', 'bsf4', 'bsf5');
-fprintf(fileID,'%6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f\n', [lp1; lp2; lp3; lp4; lp5; lp6; lp7; hp1; hp2; hp3; hp4; hp5; hp6; hp7; bp1; bp2; bp3; bp4; bp5; bs1; bs2; bs3; bs4; bs5]);
+fprintf(fileID,'%6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s, %6s\n', 'lpf1', 'lpf2', 'lpf3', 'lpf4', 'lpf5', 'hpf1', 'hpf2', 'hpf3', 'hpf4', 'hpf5', 'bpf1', 'bpf2', 'bpf3', 'bpf4', 'bpf5', 'bsf1', 'bsf2', 'bsf3', 'bsf4', 'bsf5');
+fprintf(fileID,'%6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f, %6f\n', [lp1; lp2; lp3; lp4; lp5; hp1; hp2; hp3; hp4; hp5; bp1; bp2; bp3; bp4; bp5; bs1; bs2; bs3; bs4; bs5]);
 %fprintf(fileID,'%6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d, %6d\n', lpf1, lpf2, lpf3, lpf4, lpf5, lpf6, lpf7, hpf1, hpf2, hpf3, hpf4, hpf5, hpf6, hpf7, bpf1, bpf2, bpf3, bpf4, bpf5, bsf1, bsf2, bsf3, bsf4, bsf5);
 fclose(fileID);
 
 %% Test Filter
-% t = (0:1:199)/Fs;
-% f = 1000;
-% s = sin(2*pi*f*t);
-% filt = filter(lp1,1,s);
+t = (0:1:199)/Fs;
+f = 200;
+s = sin(2*pi*f*t);
+filt = filter(lp1,1,s);
+plot(filt)
 
 % subplot(2,1,1);
 % plot(s);
