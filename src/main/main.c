@@ -1,6 +1,7 @@
 // Include Libraries
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <time.h>
 #include <sys/time.h>
@@ -12,7 +13,8 @@
 #include "driver/adc.h"
 #include "driver/dac.h"
 #include "esp_log.h"
-
+#include "u8g2_esp32_hal.h"
+#include "icons.h"
 #include "include/FSM.h"
 #include "include/fix_fft.h"
 #include "include/filter_coeff.h"
@@ -27,11 +29,13 @@
 #define ROT_A GPIO_NUM_0
 #define ROT_B GPIO_NUM_2
 #define BUZZER GPIO_NUM_4
+#define PIN_SDA GPIO_NUM_21
+#define PIN_SCL GPIO_NUM_22
 
 #define FSM_PERIOD 3   // 2 ms
 #define FILTER_PERIOD 1 // 1 ms -> 1kHz
 #define FFT_PERIOD 128 // 128*FILTER_PERIOD (use more to check FFT output via serial)
-
+#define DISPLAY_PERIOD 512
 
 // Global Variables
 State display_state = Display_Info;
@@ -39,10 +43,11 @@ State filter_state = Compute_Filter;
 QueueHandle_t xQueue;
 const int8_t* used_coeff;
 int8_t rot_count = 0;
-
+// int8_t fft_temp[64];
+int8_t fft_res[256];
 
 // Function Prototypes
-// void main_task(void *pvParameter);
+void main_task(void *pvParameter);
 void filter_task(void *pvParameter);
 void fsm_task(void *pvParameter);
 void fft_task(void *pvParameter);
@@ -61,25 +66,156 @@ int app_main() {
     initialize_dac();
     initialize_gpio();
 
-    xQueue = xQueueCreate( 128, sizeof(int8_t) ); // Use more to check FFT output via serial
+    xQueue = xQueueCreate( 256, sizeof(int8_t) ); // Use more to check FFT output via serial
 
     // gettimeofday(&t2, NULL);
     // elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000000.0;  // sec to us
     // elapsedTime += (t2.tv_usec - t1.tv_usec) ;
     // ESP_LOGW("INIT", "%lf us", elapsedTime);
 
-    // xTaskCreate(&main_task, "main_task", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
-    xTaskCreate(&filter_task, "filter_task", 2048, NULL, 6, NULL);
-    xTaskCreate(&fsm_task,  "fsm_task", 2048, NULL, 7, NULL);
-    xTaskCreate(&fft_task, "fft_task", 2048, NULL, 5, NULL);
+    xTaskCreate(&main_task, "main_task", 4096, NULL, 2, NULL);
+    xTaskCreate(&filter_task, "filter_task", 2048, NULL, 4, NULL);
+    xTaskCreate(&fsm_task,  "fsm_task", 2048, NULL, 3, NULL);
+    xTaskCreate(&fft_task, "fft_task", 2048, NULL, 2, NULL);
 
     return 0;
 }
 
 
-// void main_task(void *pvParameter) {
+void main_task(void *pvParameter) {
+    TickType_t xLastWakeTime;
+    const TickType_t Period = DISPLAY_PERIOD / portTICK_PERIOD_MS;
 
-// }
+    // const double fft_temp[64] = { 1.00, 0.95,   0.90,   0.85,   0.80,   0.75,   0.70,   0.65, 
+    //                        0.60,    0.55,   0.40,   0.35,   0.30,   0.25,   0.20,   0.15,
+    //                        1.00,    0.95,   0.90,   0.85,   0.80,   0.75,   0.70,   0.65, 
+    //                        0.60,    0.55,   0.40,   0.35,   0.30,   0.25,   0.20,   0.15,
+    //                        1.00,    0.95,   0.90,   0.85,   0.80,   0.75,   0.70,   0.65, 
+    //                        0.60,    0.55,   0.40,   0.35,   0.30,   0.25,   0.20,   0.15,
+    //                        1.00,    0.95,   0.90,   0.85,   0.80,   0.75,   0.70,   0.65, 
+    //                        0.60,    0.55,   0.40,   0.35,   0.30,   0.25,   0.20,   0.15};
+    int i;
+    // initialize the u8g2 hal
+    u8g2_esp32_hal_t u8g2_esp32_hal = U8G2_ESP32_HAL_DEFAULT;
+    u8g2_esp32_hal.sda = PIN_SDA;
+    u8g2_esp32_hal.scl = PIN_SCL;
+    u8g2_esp32_hal_init(u8g2_esp32_hal);
+
+    // initialize the u8g2 library
+    u8g2_t u8g2;
+    u8g2_Setup_ssd1306_i2c_128x64_noname_f(
+        &u8g2,
+        U8G2_R0,
+        u8g2_esp32_i2c_byte_cb,
+        u8g2_esp32_gpio_and_delay_cb);
+    
+    // set the display address
+    u8x8_SetI2CAddress(&u8g2.u8x8, 0x78);
+    
+    // initialize the display
+    u8g2_InitDisplay(&u8g2);
+    
+    // wake up the display
+    u8g2_SetPowerSave(&u8g2, 0);
+    char fcut[24] = "";
+    char ftype[24] = "";
+
+    // struct timeval t1, t2;
+    // double elapsedTime;
+
+    // Initialise the xLastWakeTime variable with the current time.
+    xLastWakeTime = xTaskGetTickCount();
+    while(1){
+
+        // gettimeofday(&t1, NULL);
+        switch(display_state){
+            case Show_FFT: 
+                // Case Display FFT
+                u8g2_ClearBuffer(&u8g2);
+                u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
+                u8g2_DrawStr(&u8g2, 28, 9," - F F T - ");
+                u8g2_DrawHLine(&u8g2, 1, 10, 126);
+
+                short fft_height = 115;
+                // for (i = 128; i > 118-fft_height; i -= fft_height/10){
+                //    // Draw Pixel For Marking Amplitude
+                //    // Pointer, X, Y
+                   
+                //    u8g2_DrawPixel(&u8g2, 0, i);
+                // }
+                for (i = 0; i < 32; i++){
+                 // Pointer, X, Y (upper end), Length
+                 // u8g2_DrawVLine(&u8g2, (i*2)-1, 128-fft_res[i]*fft_height, fft_res[i]*fft_height);
+                    u8g2_DrawVLine(&u8g2, (i*4)+1, 110-abs(fft_res[i]), abs(fft_res[i]) );
+                    u8g2_DrawVLine(&u8g2, (i*4)+2, 110-abs(fft_res[i]), abs(fft_res[i]) );
+                }
+                u8g2_SendBuffer(&u8g2);
+                break;
+            case Display_Info:
+                //Case Menu
+                if(rot_count==0){
+                    strcpy(fcut, "Cutoff-Freq: -");
+                    strcpy(ftype, "Filter Type: None");
+                }else if(rot_count<6){
+                    switch(rot_count){
+                        case 1: strcpy(fcut, "Cutoff-Freq: 50 Hz");  break;
+                        case 2: strcpy(fcut, "Cutoff-Freq: 100 Hz"); break;
+                        case 3: strcpy(fcut, "Cutoff-Freq: 150 Hz"); break;
+                        case 4: strcpy(fcut, "Cutoff-Freq: 200 Hz"); break;
+                        case 5: strcpy(fcut, "Cutoff-Freq: 250 Hz"); break;
+                    }
+                    strcpy(ftype, "Filter Type: LPF");
+
+                }else if(rot_count<11){
+                    switch(rot_count){
+                        case 6:  strcpy(fcut, "Cutoff-Freq: 50 Hz");  break;
+                        case 7:  strcpy(fcut, "Cutoff-Freq: 100 Hz"); break;
+                        case 8:  strcpy(fcut, "Cutoff-Freq: 150 Hz"); break;
+                        case 9:  strcpy(fcut, "Cutoff-Freq: 200 Hz"); break;
+                        case 10: strcpy(fcut, "Cutoff-Freq: 250 Hz"); break;
+                    }
+                    strcpy(ftype, "Filter Type: HPF");
+                }else if(rot_count<16){
+                    switch(rot_count){
+                        case 11: strcpy(fcut, "Cutoff-Freq:  50-100"); break;
+                        case 12: strcpy(fcut, "Cutoff-Freq:  50-150"); break;
+                        case 13: strcpy(fcut, "Cutoff-Freq: 100-200"); break;
+                        case 14: strcpy(fcut, "Cutoff-Freq: 150-250"); break;
+                        case 15: strcpy(fcut, "Cutoff-Freq: 200-250"); break;
+                    }
+                    strcpy(ftype, "Filter Type: BPF");
+                }else if(rot_count<20){
+                    switch(rot_count){
+                        case 16: strcpy(fcut, "Cutoff-Freq:  50-100"); break;
+                        case 17: strcpy(fcut, "Cutoff-Freq:  50-150"); break;
+                        case 18: strcpy(fcut, "Cutoff-Freq: 100-200"); break;
+                        case 19: strcpy(fcut, "Cutoff-Freq: 150-250"); break;
+                        case 20: strcpy(fcut, "Cutoff-Freq: 200-250"); break;
+                    }
+                    strcpy(ftype, "Filter Type: BSF");
+                }
+
+                u8g2_ClearBuffer(&u8g2);
+                u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
+                u8g2_DrawStr(&u8g2, 15, 9," - LEGENDS - ");
+                u8g2_DrawHLine(&u8g2, 1, 11, 125);
+                u8g2_DrawStr(&u8g2, 0, 21, "N-Point FFT: 128");
+                u8g2_DrawStr(&u8g2, 0, 31, "Freq / div : 7.8");
+                u8g2_DrawStr(&u8g2, 0, 41, "Ampl / div : 0.1");
+                u8g2_DrawStr(&u8g2, 0, 52, fcut);
+                u8g2_DrawStr(&u8g2, 0, 63, ftype);
+                u8g2_SendBuffer(&u8g2);
+                break;
+                default: break;
+        }
+        // Calculate exec time
+        // gettimeofday(&t2, NULL);
+        // elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000000.0;  // sec to us
+        // elapsedTime += (t2.tv_usec - t1.tv_usec) ;
+        // ESP_LOGW("DISPLAY", "%lf us", elapsedTime);
+        vTaskDelayUntil(&xLastWakeTime, Period);
+    }
+}
 
 
 void filter_task(void *pvParameter) {
@@ -108,7 +244,6 @@ void filter_task(void *pvParameter) {
 
     while (1) {
         // gettimeofday(&t1, NULL);
-
         if (filter_state == Chg_Coeff) {
             // printf("%d\n", rot_count);  // Uncomment to see current state
 
@@ -133,60 +268,48 @@ void filter_task(void *pvParameter) {
                     used_coeff = lpf5;
                     break;
                 case 6:
-                    used_coeff = lpf6;
-                    break;
-                case 7:
-                    used_coeff = lpf7;
-                    break;
-                case 8:
                     used_coeff = hpf1;
                     break;
-                case 9:
+                case 7:
                     used_coeff = hpf2;
                     break;
-                case 10:
+                case 8:
                     used_coeff = hpf3;
                     break;
-                case 11:
+                case 9:
                     used_coeff = hpf4;
                     break;
-                case 12:
+                case 10:
                     used_coeff = hpf5;
                     break;
-                case 13:
-                    used_coeff = hpf6;
-                    break;
-                case 14:
-                    used_coeff = hpf7;
-                    break;
-                case 15:
+                case 11:
                     used_coeff = bpf1;
                     break;
-                case 16:
+                case 12:
                     used_coeff = bpf2;
                     break;
-                case 17:
+                case 13:
                     used_coeff = bpf3;
                     break;
-                case 18:
+                case 14:
                     used_coeff = bpf4;
                     break;
-                case 19:
+                case 15:
                     used_coeff = bpf5;
                     break;
-                case 20:
+                case 16:
                     used_coeff = bsf1;
                     break;
-                case 21:
+                case 17:
                     used_coeff = bsf2;
                     break;
-                case 22:
+                case 18:
                     used_coeff = bsf3;
                     break;
-                case 23:
+                case 19:
                     used_coeff = bsf4;
                     break;
-                case 24:
+                case 20:
                     used_coeff = bsf5;
                     break;
                 default:
@@ -197,10 +320,11 @@ void filter_task(void *pvParameter) {
             // Compute Filter
             // Read ADC, 12 Bit
             adc_reading = adc1_get_raw(ADC_CHANNEL);
-
+            // printf("%d\n", adc_reading);
             // Conditioning Variables
             int result = 0;
             buffer_int[buffer_offset] = adc_reading;
+            int sent = 0;
 
             // Circular Convolution Process, result max 20 Bit
             for(j = 0; j < BUFFERLENGTH; j++) {
@@ -217,13 +341,13 @@ void filter_task(void *pvParameter) {
             // Convert Result for FFT to 8 Bit
             // by shift 10 times and ad 2^7
             if (rot_count == 0) {
-                result = (int8_t) (adc_reading >> 5);
+                sent = (int8_t) (adc_reading >> 5);
             } else {
-                result = (int8_t) (result >> 13);
+                sent = (int8_t) (result >> 13);
             }
 
             // Enqueue Result
-            xQueueSendToBack(xQueue, (void *) &result, (TickType_t) 0);
+            xQueueSendToBack(xQueue, (void *) &sent, (TickType_t) 0);
 
             // Convert Result for DAC to 8 Bit,
             // by shift 13 OR 5 times and ad 2^7
@@ -264,10 +388,10 @@ void fsm_task(void *pvParameter) {
     int8_t rot_but, change, in_fsm2;
 
     // rot_count additional variables
-    const int8_t type[5] = {0, 1, 8, 15,20};
-    const int8_t max_of_type [5] = {0, 7, 14, 19, 24};
+    const int8_t type[5] = {0, 1, 6, 11, 16};
+    const int8_t max_of_type [5] = {0, 5, 10, 15, 20};
     int8_t current = 0;
-
+    uint8_t count = 0;
     // struct timeval t1, t2;
     // double elapsedTime;
 
@@ -275,7 +399,6 @@ void fsm_task(void *pvParameter) {
     xLastWakeTime = xTaskGetTickCount();
 
     while(1) {
-
         // gettimeofday(&t1, NULL);
 
         // Reading Buttons current state
@@ -310,8 +433,15 @@ void fsm_task(void *pvParameter) {
         }
 
         // Turn on Buzzer on each signal
-        gpio_set_level(BUZZER, but_1|but_2|rot_but|rot);
-
+        if(but_1|but_2|rot_but|rot){
+            count = 10;
+        }
+        if (count>0){
+            count--;
+            gpio_set_level(BUZZER, 1);
+        }else{
+            gpio_set_level(BUZZER, 0);
+        }
         // Running FSM
         fsm1(but_1, but_2, rot, &change, &display_state);
         in_fsm2 = change | rot_but;
@@ -352,7 +482,7 @@ void fft_task(void *pvParameter) {
     int8_t filt_res[128];
     int8_t im[128];
     int i = 0;
-    int8_t fft_res[128];
+    
 
     // struct timeval t1, t2;
     // double elapsedTime;
@@ -361,12 +491,11 @@ void fft_task(void *pvParameter) {
      xLastWakeTime = xTaskGetTickCount();
 
     while (1) {
-
         // gettimeofday(&t1, NULL);
 
         // Resetting Im & Inserting Re
         // printf("is\n"); // Input signal, start sign
-        for (i = 0; i < 128; i++)
+        for (i = 0; i < 64; i++)
         {
             im[i] = 0;
             if(xQueueReceive(xQueue, &filt_res[i], (TickType_t) 0)) {
@@ -376,12 +505,15 @@ void fft_task(void *pvParameter) {
         // printf("if\n"); // Input signal, finish sign
 
         // Calculate FFT
-        fix_fft(filt_res, im, 7, 0);
+        fix_fft(filt_res, im, 6, 0);
         // printf("fs\n"); // FFT signal, start sign
-        for (i = 0; i < 64; i++) {
-            fft_res[i] = 2*isqrt(filt_res[i] * filt_res[i] + im[i] * im[i]);
+        for (i = 0; i < 32; i++) {
+            fft_res[i] = (2*isqrt(filt_res[i] * filt_res[i] + im[i] * im[i]));
             // printf("%d\n", fft_res[i]);         // Uncomment to check FFT signal
         }
+        // for (i = 0; i < 64; i++) {
+        //     fft_temp[i] = fft_res[i];
+        // }
         // printf("ff\n"); // FFT signal, finish sign
 
         // gettimeofday(&t2, NULL);
