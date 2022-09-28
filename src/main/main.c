@@ -199,8 +199,8 @@ void main_task(void *pvParameter) {
                 u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
                 u8g2_DrawStr(&u8g2, 15, 9," - LEGENDS - ");
                 u8g2_DrawHLine(&u8g2, 1, 11, 125);
-                u8g2_DrawStr(&u8g2, 0, 21, "N-Point FFT: 128");
-                u8g2_DrawStr(&u8g2, 0, 31, "Freq / div : 7.8");
+                u8g2_DrawStr(&u8g2, 0, 21, "N-Point FFT: 64");
+                u8g2_DrawStr(&u8g2, 0, 31, "Freq / div : 15.625");
                 u8g2_DrawStr(&u8g2, 0, 41, "Ampl / div : 0.1");
                 u8g2_DrawStr(&u8g2, 0, 52, fcut);
                 u8g2_DrawStr(&u8g2, 0, 63, ftype);
@@ -421,7 +421,7 @@ void fsm_task(void *pvParameter) {
             } else {
                 rot_count = rot_count - 1;
             }
-            // Clipping rot_count between 1 to 7
+            // Clipping rot_count between 1 to 5
             if (rot_count < type[current]) {
                 rot_count = type[current];
             } else if ( rot_count > max_of_type[current]) {

@@ -29,28 +29,28 @@ int8_t *koef_filter_int;
 
 // LOW PASS FILTER
 int8_t koef_lpf1[BUFFERLENGTH] = {
--1, 1, 58, -3, -1, 13, 18, -1, 2, -28, -3, -1, -1, -75, -1, -1,
-5, -1, 1, 2, 1, -3, -1, 1, -24, 1, -1, 17, -1, 1, 1, 40, 4
+-1,-1,-1,-1,-2,-2,-2,-2,1 ,4 ,8  ,13 ,18 ,23 ,27 ,30 ,31 ,
+30 ,27 ,23 ,18 ,13 ,8  ,4 ,1 ,-2,-2,-2,-2,-1,-1,-1,-1
 };
 
 int8_t koef_lpf2[BUFFERLENGTH] = {
--1, -2, 65, -4, -1, 1, -10, 1, 1, 24, -7, 1, -3, 161, -5, 1, 7,
--18, -2, -2, -33, 10, 1, -1, 64, 3, 1, -1, 43, 3, 3, -43, -1
+-1,-1,-1,-1,1 ,2 ,3 ,2 ,-2,-7,-10,-8 ,3  ,20 ,40 ,56 ,62 ,
+56 ,40 ,20 ,3  ,-8 ,-10,-7,-2,2 ,3 ,2 ,1 ,-1,-1,-1,-1
 };
 
 int8_t koef_lpf3[BUFFERLENGTH] = {
--1, -3, 58, 1, -1, -8, -28, 2, -1, -18, -12, 1, -3, -75, -1, -1,
--7, 40, 2, 1, -36, 23, 1, 5, -24, 1, -1, -4, 40, 1, 1, -1, -17
+-1,-1,-1,1 ,2 ,-1,-3,-3,3 ,8 ,5  ,-8 ,-18,-7 ,31 ,74 ,93 ,
+74 ,31 ,-7 ,-18,-8 ,5  ,8 ,3 ,-3,-3,-1,2 ,1 ,-1,-1,-1
 };
 
 int8_t koef_lpf4[BUFFERLENGTH] = {
--1, -2, 40, 7, -1, -1, 75, -3, 1, 12, -18, 1, -2, -28, 8, -1, -1,
--58, -3, -1, -17, -1, -1, -1, -40, -4, -1, -1, -24, -5, -1, 23, 36
+-1,-1,1 ,1 ,-2,-2,2 ,4 ,-3,-7,4  ,13 ,-5 ,-25,5  ,81 ,124,
+81 ,5  ,-25,-5 ,13 ,4  ,-7,-3,4 ,2 ,-2,-2,1 ,1 ,-1,-1
 };
 
 int8_t koef_lpf5[BUFFERLENGTH] = {
--2, -2, 18, 7, -1, 5, 161, 3, -1, -7, -24, -1, -1, 10, -1, 1, 4,
-65, 2, 1, -1, -43, -3, -3, 43, 1, 1, 3, 193, 1, 1, -10, -33
+-1,0 ,1 ,-1,-1,3 ,0 ,-4,4 ,5 ,-10,0  ,17 ,-15,-24,77 ,154,
+77 ,-24,-15,17 ,0  ,-10,5 ,4 ,-4,0 ,3 ,-1,-1,1 ,0 ,-1
 };
 
 int8_t koef_lpf6[BUFFERLENGTH] = {
@@ -253,11 +253,19 @@ int main(int argc, char *argv[]) {
     FILE *pFile_int;
     pFile_int = fopen("Sinyal Input.txt", "w");
     int i =0;
-    for(i=0; i < LENGTH; i++) {
-        holder = ((sin(2*M_PI*f1/fs*i))+(sin(2*M_PI*f2/fs*i))+(sin(2*M_PI*f3/fs*i))); // Menjumlahkan 3 sinus lalu amplitudanya dinormalisasi
-		x_int[i] = (int) (holder*pow(2,12)); // Dikonversi ke bilangan fraksional dipilih 15 agar tidak terjadi overflow
-        fprintf(pFile_int,"%f\n", holder);
-	}
+ //    for(i=0; i < LENGTH; i++) {
+ //        holder = ((sin(2*M_PI*f1/fs*i))+(sin(2*M_PI*f2/fs*i))+(sin(2*M_PI*f3/fs*i))); // Menjumlahkan 3 sinus lalu amplitudanya dinormalisasi
+	// 	x_int[i] = (int) (holder*pow(2,12)); // Dikonversi ke bilangan fraksional dipilih 15 agar tidak terjadi overflow
+ //        fprintf(pFile_int,"%f\n", holder);
+	// }
+    for (i = 0; i < LENGTH; i += 1) {
+        if ((i / 8) % 2 == 0) {
+            x_int[i] = 1*pow(2,12);
+        } else {
+            x_int[i] = 0;
+        }
+        fprintf(pFile_int,"%d\n", x_int[i]/16);
+    }
     fclose(pFile_int);
 
 	/*=============================================================*/
